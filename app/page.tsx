@@ -1,100 +1,128 @@
-import Image from "next/image";
+import { useState } from "react";
+import { Wallet, Sparkles, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useOnboarding } from "@/hooks/use-onboarding";
+import { apiRequest } from "@/lib/queryClient";
 
-export default function Home() {
+interface WalletStepProps {
+  onNext: () => void;
+  onPrev: () => void;
+}
+
+export function WalletStep({ onNext, onPrev }: WalletStepProps) {
+  const [isCreating, setIsCreating] = useState(false);
+  const [walletCreated, setWalletCreated] = useState(false);
+  const { toast } = useToast();
+  const { onboardingData, updateOnboardingData } = useOnboarding();
+
+  const handleCreateWallet = async () => {
+    if (!onboardingData.userId) {
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "กรุณาเข้าสู่ระบบก่อนสร้าง Wallet",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const response = await apiRequest("POST", "/api/wallet/create", {
+        userId: onboardingData.userId,
+        biometricEnabled: onboardingData.biometricEnabled,
+        pinHash: onboardingData.pinHash || null,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      updateOnboardingData({ 
+        walletCreated: true, 
+        walletAddress: data.wallet.address 
+      });
+      
+      setWalletCreated(true);
+      toast({
+        title: "Smart Wallet สร้างสำเร็จ",
+        description: "กระเป๋าเงินดิจิทัลของคุณพร้อมใช้งานแล้ว",
+      });
+      
+      setTimeout(() => onNext(), 2000);
+    } catch (error) {
+      console.error('Create wallet error:', error);
+      toast({
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถสร้าง Smart Wallet ได้ กรุณาลองใหม่อีกครั้ง",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="p-6">
+      <div className="text-center mb-6">
+        <div className="w-16 h-16 mx-auto mb-4 bg-green-500/10 rounded-xl flex items-center justify-center">
+          <Wallet className="w-8 h-8 text-green-500" />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+        <h3 className="text-xl font-bold mb-2 text-foreground">สร้าง Smart Wallet</h3>
+        <p className="text-muted-foreground text-sm">
+          สร้างกระเป๋าเงินที่รองรับ Account Abstraction
+        </p>
+      </div>
+
+      <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-xl p-4 mb-6 border border-green-500/20">
+        <h4 className="font-semibold mb-2 flex items-center gap-2 text-foreground">
+          <Sparkles className="w-4 h-4 text-green-500" />
+          คุณสมบัติพิเศษ
+        </h4>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li className="flex items-center gap-2">
+            <Check className="w-3 h-3 text-green-500" />
+            ไม่ต้องจ่าย Gas Fee ในการทำธุรกรรม
+          </li>
+          <li className="flex items-center gap-2">
+            <Check className="w-3 h-3 text-green-500" />
+            รองรับการกู้คืนแบบ Social Recovery
+          </li>
+          <li className="flex items-center gap-2">
+            <Check className="w-3 h-3 text-green-500" />
+            ใช้งานง่าย เหมือนแอปธนาคาร
+          </li>
+          <li className="flex items-center gap-2">
+            <Check className="w-3 h-3 text-green-500" />
+            รองรับ Multi-Chain
+          </li>
+        </ul>
+      </div>
+
+      <Button
+        onClick={handleCreateWallet}
+        disabled={isCreating || walletCreated}
+        className="w-full bg-gradient-to-r from-primary to-accent text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-all duration-200 disabled:opacity-50 mb-4"
+        data-testid="button-create-wallet"
+      >
+        {isCreating ? "กำลังสร้าง..." : walletCreated ? "✅ สร้างเรียบร้อยแล้ว" : "สร้าง Smart Wallet"}
+      </Button>
+
+      <div className="flex gap-3">
+        <Button
+          onClick={onPrev}
+          variant="secondary"
+          className="flex-1 py-3 rounded-xl font-semibold"
+          data-testid="button-wallet-prev"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
+          ย้อนกลับ
+        </Button>
+      </div>
+    </div>
+  );
+}
+
           Go to nextjs.org →
         </a>
       </footer>
