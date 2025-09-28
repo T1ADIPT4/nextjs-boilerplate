@@ -122,10 +122,3 @@ export function WalletStep({ onNext, onPrev }: WalletStepProps) {
     </div>
   );
 }
-
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
-}
